@@ -1,0 +1,102 @@
+library(xtable)
+
+# Read the dataset 'bmi2_data.csv' into R
+D <- read.table("bmi2_data.csv", header = TRUE, sep = ";")
+
+# Add log-BMI to the dataset
+D$logbmi <- log(D$bmi)
+
+#scatter plots of log transformed bmi data
+par(mfrow=c(1,2))
+
+#BMI vs age
+plot(D$age, D$logbmi, xlab = "Age", ylab = "log(BMI)", main = "log(BMI) vs Age")
+
+#BMI vs fastfood
+plot(D$fastfood, D$logbmi, xlab = "Fastfood", ylab = "log(BMI)", main = "log(BMI) vs Fastfood")
+
+#histograms of each variable
+par(mfrow=c(1,3))
+  
+#bmi hist
+hist(D$logbmi, xlab = "log(BMI)", main = "Histogram of log(BMI)")
+
+#age hist
+hist(D$age, xlab = "Age", main = "Histogram of Age")
+
+#fastfood hist
+hist(D$fastfood, xlab = "Fastfood", main = "Histogram of fastfood")
+
+
+#box plot of each variable
+par(mfrow = c(1,3))
+
+#bmi box plot
+boxplot(D$logbmi, ylab = "log(BMI)")
+
+#age box plot
+boxplot(D$age, ylab = "age")
+
+#fastfood box plot
+boxplot(D$fastfood, ylab = "fastfood")
+
+#Summary Stats of the data
+xtable(summary(D[,c(-1,-2)]))
+
+# Subset containing the first 840 observations (for model estimation)
+D_model <- subset(D, id <= 840)
+
+# Subset containing the last 7 observations (for validation)
+D_test <- subset(D, id >= 841)
+
+# Estimate multiple linear regression model
+fit <- lm(logbmi ~ age + fastfood, data = D_model)
+
+# Show parameter estimates etc.
+summary(fit)
+
+# Plots for model validation
+par(mfrow = c(1,1))
+# Observations against fitted values
+plot(fit$fitted.values, D_model$logbmi, xlab = "Fitted values",     
+       ylab = "log(BMI)", main = "log(BMI) vs Fitted values")
+
+# Residuals against each of the explanatory variables
+par(mfrow = c(1,3))
+#age
+plot(D_model$age, fit$residuals, 
+        xlab = "age", ylab = "Residuals")
+
+#fastfood
+plot(D_model$fastfood, fit$residuals, 
+     xlab = "fastfood", ylab = "Residuals")
+
+# Residuals against fitted values
+plot(fit$fitted.values, fit$residuals, xlab = "Fitted values", 
+     ylab = "Residuals")
+
+par(mfrow = c(1,1))
+# Normal QQ-plot of the residuals
+qqnorm(fit$residuals, ylab = "Residuals", xlab = "Z-scores", 
+       main = "Normal Q-Q Plot")
+qqline(fit$residuals)
+  
+# Confidence intervals for the model coefficients
+confint(fit, level = 0.95)
+
+#Final Model
+FINAL_MODEL <- lm(logbmi ~ age, data = D_model)
+
+xtable(summary(FINAL_MODEL))
+#summary(fit)
+# Predictions and 95% prediction intervals
+pred <- predict(FINAL_MODEL, newdata = D_test, 
+                interval = "prediction", level = 0.95, se = TRUE)
+
+# Observed values and predictions
+cbind(id = D_test$id, logbmi = D_test$logbmi, pred$fit)
+
+#error between predictions and test data
+abs(pred[["fit"]][,1] - D_test$logbmi)/D_test$logbmi*100
+##mean of errors
+mean(abs(pred[["fit"]][,1] - D_test$logbmi)/D_test$logbmi*100)
